@@ -1,6 +1,6 @@
 const fetch = require("node-fetch");
 
-let ipCounts = {}; // In-memory IP rate-limiter
+let ipCounts = {}; // In-memory store (restarts daily on Netlify)
 
 exports.handler = async (event) => {
   const ip = event.headers["x-forwarded-for"] || "unknown";
@@ -13,24 +13,18 @@ exports.handler = async (event) => {
     };
   }
 
-  let userInput = "";
+  const body = JSON.parse(event.body || "{}");
+  const userInput = body.prompt || "";
 
-  try {
-    const body = JSON.parse(event.body || "{}");
-    userInput = body.prompt || "";
-  } catch (err) {
-    return {
-      statusCode: 400,
-      body: JSON.stringify({ message: "Invalid JSON in request body." })
-    };
-  }
-
-  try {
-    const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        model: "gpt-3.5
+  const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      model: "gpt-4",
+      messages: [
+        {
+          role: "system",
+          content: "You are Safanad
