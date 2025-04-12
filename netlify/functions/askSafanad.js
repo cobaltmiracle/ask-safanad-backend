@@ -1,39 +1,44 @@
-const fetch = require("node-fetch");
+const fetch = require('node-fetch');
 
-let ipCounts = {}; // In-memory IP rate limiter
-
-exports.handler = async (event) => {
-  const ip = event.headers["x-forwarded-for"] || "unknown";
-  ipCounts[ip] = ipCounts[ip] || 0;
-  ipCounts[ip] += 1;
-
-  if (ipCounts[ip] > 12) {
-    return {
-      statusCode: 429,
-      body: JSON.stringify({ message: "Limit reached. Please try again tomorrow." }),
-    };
-  }
-
-  const body = JSON.parse(event.body || "{}");
-  const userInput = body.prompt || "";
-
+exports.handler = async function(event, context) {
   try {
-    const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
+    const { prompt } = JSON.parse(event.body || '{}');
+
+    if (!prompt) {
+      console.log("No prompt received.");
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ message: 'Prompt missing.' })
+      };
+    }
+
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
       headers: {
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-        "Content-Type": "application/json",
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
       },
       body: JSON.stringify({
-        model: "gpt-3.5-turbo",
-        messages: [
-          {
-            role: "system",
-            content: "You are Safanad, the Cobalt Stallion. Respond only with sound-based emotional cues and occasional pithy insights in response to deep human questions.",
-          },
-          {
-            role: "user",
-            content: userInput,
-          },
-        ],
-        max_tokens: 150,
+        model: 'gpt-3.5-turbo',
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.7
+      })
+    });
+
+    const data = await response.json();
+
+    console.log("OpenAI response:", JSON.stringify(data)); // Debug log
+
+    const message = data.choices?.[0]?.message?.content || '[Silence...]';
+    return {
+      statusCode: 200,
+      body: JSON.stringify({ message })
+    };
+  } catch (error) {
+    console.error("Error in function:", error);
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ message: '[Error]', error: error.message })
+    };
+  }
+};
