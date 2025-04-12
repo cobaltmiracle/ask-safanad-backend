@@ -1,4 +1,4 @@
-const fetch = require("node-fetch");
+import fetch from "node-fetch";
 
 let ipCounts = {}; // In-memory store (restarts daily on Netlify)
 
