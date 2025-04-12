@@ -1,10 +1,11 @@
 const fetch = require("node-fetch");
 
-let ipCounts = {}; // simple in-memory rate limit
+let ipCounts = {}; // In-memory IP rate limiter
 
 exports.handler = async (event) => {
   const ip = event.headers["x-forwarded-for"] || "unknown";
-  ipCounts[ip] = (ipCounts[ip] || 0) + 1;
+  ipCounts[ip] = ipCounts[ip] || 0;
+  ipCounts[ip] += 1;
 
   if (ipCounts[ip] > 12) {
     return {
@@ -13,10 +14,10 @@ exports.handler = async (event) => {
     };
   }
 
-  try {
-    const body = JSON.parse(event.body || "{}");
-    const userInput = body.prompt || "";
+  const body = JSON.parse(event.body || "{}");
+  const userInput = body.prompt || "";
 
+  try {
     const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -28,28 +29,11 @@ exports.handler = async (event) => {
         messages: [
           {
             role: "system",
-            content:
-              "You are Safanad, the Cobalt Stallion. Respond only with sound-based emotional cues and occasional pithy insights in response to deep human questions.",
+            content: "You are Safanad, the Cobalt Stallion. Respond only with sound-based emotional cues and occasional pithy insights in response to deep human questions.",
           },
-          { role: "user", content: userInput },
+          {
+            role: "user",
+            content: userInput,
+          },
         ],
         max_tokens: 150,
-      }),
-    });
-
-    const data = await openaiRes.json();
-
-    const reply =
-      data?.choices?.[0]?.message?.content || "[Silence... OpenAI gave no response.]";
-
-    return {
-      statusCode: 200,
-      body: JSON.stringify({ message: reply }),
-    };
-  } catch (err) {
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ error: "Server error", details: err.message }),
-    };
-  }
-};
