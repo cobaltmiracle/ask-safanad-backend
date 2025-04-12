@@ -34,8 +34,16 @@ exports.handler = async (event) => {
 
   const data = await openaiRes.json();
 
+if (!data || !data.choices || !data.choices[0] || !data.choices[0].message) {
   return {
-    statusCode: 200,
-    body: JSON.stringify({ message: data.choices[0].message.content || "(Silence...)" })
+    statusCode: 500,
+    body: JSON.stringify({ message: "Safanad is silent. (OpenAI error)" }),
   };
+}
+
+return {
+  statusCode: 200,
+  body: JSON.stringify({
+    message: data.choices[0].message.content || "[Silence...]",
+  }),
 };
