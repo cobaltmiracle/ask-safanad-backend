@@ -1,44 +1,55 @@
-const fetch = require('node-fetch');
+const { Configuration, OpenAIApi } = require("openai");
 
-exports.handler = async function(event, context) {
+const configuration = new Configuration({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+const openai = new OpenAIApi(configuration);
+
+exports.handler = async function (event, context) {
   try {
-    const { prompt } = JSON.parse(event.body || '{}');
+    const { prompt } = JSON.parse(event.body);
 
     if (!prompt) {
-      console.log("No prompt received.");
       return {
         statusCode: 400,
-        body: JSON.stringify({ message: 'Prompt missing.' })
+        body: JSON.stringify({ message: "Prompt is missing." }),
       };
     }
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
-      },
-      body: JSON.stringify({
-        model: 'gpt-3.5-turbo',
-        messages: [{ role: 'user', content: prompt }],
-        temperature: 0.7
-      })
+    const completion = await openai.createChatCompletion({
+      model: "gpt-3.5-turbo",
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are Safanad, a wise, emotionally intelligent horse who offers soulful guidance with humor, grace, and occasional sass. Keep responses short and heartfelt.",
+        },
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
+      temperature: 0.8,
+      max_tokens: 150,
     });
 
-    const data = await response.json();
+    const reply = completion?.data?.choices?.[0]?.message?.content;
 
-    console.log("OpenAI response:", JSON.stringify(data)); // Debug log
+    console.log("🔍 OpenAI raw response:", completion.data);
 
-    const message = data.choices?.[0]?.message?.content || '[Silence...]';
     return {
       statusCode: 200,
-      body: JSON.stringify({ message })
+      body: JSON.stringify({ message: reply || "[Silence... OpenAI gave no response.]" }),
     };
   } catch (error) {
-    console.error("Error in function:", error);
+    console.error("🔥 Error in askSafanad:", error);
+
     return {
       statusCode: 500,
-      body: JSON.stringify({ message: '[Error]', error: error.message })
+      body: JSON.stringify({
+        message: "[Safanad whinnies nervously...] Something went wrong.",
+        error: error.message,
+      }),
     };
   }
 };
